@@ -1,7 +1,8 @@
 package pacman
 
 import collection.immutable
-import collection.mutable
+import javafx.scene.input.KeyCode
+import javafx.scene.input.KeyEvent
 
 object GridMethods {
 	def createGrid(n: Int): immutable.Map[(Int,Int), Any] = {
@@ -10,7 +11,6 @@ object GridMethods {
 		}.toMap
 	}
 }
-
 
 class DrawableElement()
 
@@ -33,17 +33,50 @@ case class GameGrid(val range: Integer) {
 	}
 }
 
+object PacmanInput {
 
-object Game extends App {
+	sealed trait Key
+
+	case object DOWN extends Key
+	case object UP extends Key
+	case object LEFT extends Key
+	case object RIGHT extends Key
+
+	def getKey(ev: KeyEvent): PacmanInput.Key = {
+		ev.getCode match {
+			case KeyCode.DOWN => DOWN
+			case KeyCode.UP => UP
+			case KeyCode.LEFT => LEFT
+			case KeyCode.RIGHT => RIGHT
+		}
+	}
+}
+
+
+class Game {
+	def keyPressed(ev: KeyEvent) {
+		PacmanInput.getKey(ev) match {
+			case PacmanInput.DOWN => println("down")
+			case PacmanInput.UP => println("up")
+			case PacmanInput.RIGHT => println("right")
+			case PacmanInput.LEFT => println("left")
+		}
+	}
+
+	def keyReleased(ev: KeyEvent) {}
+
 	def drawGrid(grid: GameGrid) {
 		for (i <- 0 to grid.range) {
 			grid.spaces((i, 10))
 		}
 	}
+}
 
+object Game extends App {
 
-	val ui = PacmanUI
-	ui.draw(GameGrid(10))
+	javafx.application.Application.launch(classOf[PacmanUI]);
+	//ui.drawGame(GameGrid(10))
+	//ui.start(new javafx.stage.PrimaryStage())
 }
 
 

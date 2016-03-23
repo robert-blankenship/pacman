@@ -1,44 +1,76 @@
 package pacman
 
-import scalafx.application.JFXApp
-import scalafx.application.JFXApp.PrimaryStage
-import scalafx.geometry.Insets
-import scalafx.scene.Scene
-import scalafx.scene.shape
-import scalafx.scene.paint.Color
-import scalafx.scene.control.Label
-import scalafx.scene.layout.BorderPane
+import collection.immutable
 
-object PacmanUI extends JFXApp {
-	val game = GameGrid(100)
-	
-	def draw(gameGrid: GameGrid): collection.immutable.Iterable[shape.Rectangle] = {
+import javafx.concurrent.Task
+import javafx.concurrent.WorkerStateEvent
+import javafx.event.EventHandler
+import javafx.application.Application
+import javafx.scene.Group
+import javafx.scene.Scene
+import javafx.scene.shape._
+import javafx.scene.paint.Color
+import javafx.scene.layout.Pane
+
+import javafx.scene.input.KeyEvent
+
+
+class PacmanUI extends Application {
+	val tileSize = 20
+	val tilesX = 20
+	val tilesY = tilesX
+
+	val root = new Group()
+	val scene = new Scene(root, tilesX * tileSize, tilesY * tileSize)
+
+	override def start(primaryStage: javafx.stage.Stage) {
+		primaryStage.setTitle("Hello world.")
+		primaryStage.setScene(scene)
+		primaryStage.show()
+	}
+
+	def drawGame(gameGrid: GameGrid) {
+		root.getChildren.clear()
+
 		gameGrid.spaces.map {  tile =>
 			val coordinates = tile._1
 			val element = tile._2
 
-			new shape.Rectangle {
-				width = 20
-				height = 20
-			
-				fill = element match {
+			val rect = new Rectangle(tileSize, tileSize, element match {
 					case _: Wall => Color.WHITE
 					case _: Space => Color.BLUE
 					case _: Filled => Color.BLACK
-				}
+				})
+			rect.setX(coordinates._1 * tileSize)
+			rect.setY(coordinates._2 * tileSize)
+			
+			root.getChildren.add(rect)	
+		}
+	}
 
-				x = coordinates._1 * 20
-				y = coordinates._2 * 20
+	def game_loop(i: Integer) {
+		val task = new Task[Unit] {
+			override def call(): Unit = {
+				Thread.sleep(1000)
+			}
+			override def succeeded() {
+				drawGame(GameGrid(i))
+				game_loop(i + 1)
 			}
 		}
+		val t = new Thread(task, s"frame-{i}")
+		t.setDaemon(true)
+		t.start()
 	}
 
-	stage = new PrimaryStage {
-		title.value = "Hello Stage"
-		width = 600
-		height = 450
-		scene = new Scene {
-			content = draw(game)
+	val game = new Game()
+	scene.addEventHandler(KeyEvent.KEY_PRESSED, new EventHandler[KeyEvent] {
+		override def handle(ev: KeyEvent) {
+			game.keyPressed(ev)
 		}
-	}
+	})
+
+	game_loop(0)
 }
+
+
