@@ -1,0 +1,8 @@
+--------------------------------------------------
+-X-XXXXXXXXXXXXXXXXXXXXXX-XXXXXXXXXXX-XXXXXXXXXXX-
+----X-XXXX---X---X----X-----X----XXXX-XXXXXXXXXXXX
+--X--------X---X---XX---XXX---XX------------------
+-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XX-XXX-
+-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XX-XXX-
+-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XX-XXX-
+--------------------------------------------------

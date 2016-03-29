@@ -14,11 +14,12 @@ import javafx.scene.layout.Pane
 
 import javafx.scene.input.KeyEvent
 
-
 class PacmanUI extends Application {
+	val game = new Game()
+	
 	val tileSize = 20
-	val tilesX = 20
-	val tilesY = tilesX
+	val tilesX = game.maze.width
+	val tilesY = game.maze.height
 
 	val root = new Group()
 	val scene = new Scene(root, tilesX * tileSize, tilesY * tileSize)
@@ -29,10 +30,11 @@ class PacmanUI extends Application {
 		primaryStage.show()
 	}
 
-	def drawGame(gameGrid: GameGrid) {
+	def drawMaze(mazeGrid: immutable.Map[(Int,Int), DrawableElement]) {
 		root.getChildren.clear()
 
-		gameGrid.spaces.map {  tile =>
+		mazeGrid.map { tile =>
+			println(tile)
 			val coordinates = tile._1
 			val element = tile._2
 
@@ -48,14 +50,15 @@ class PacmanUI extends Application {
 		}
 	}
 
-	def game_loop(i: Integer) {
+	val loopSleepDurationMilliseconds = 10
+
+	def loop(i: Integer) {
 		val task = new Task[Unit] {
 			override def call(): Unit = {
-				Thread.sleep(1000)
+				Thread.sleep(loopSleepDurationMilliseconds)
 			}
 			override def succeeded() {
-				drawGame(GameGrid(i))
-				game_loop(i + 1)
+				loop(i + 1)
 			}
 		}
 		val t = new Thread(task, s"frame-{i}")
@@ -63,14 +66,14 @@ class PacmanUI extends Application {
 		t.start()
 	}
 
-	val game = new Game()
 	scene.addEventHandler(KeyEvent.KEY_PRESSED, new EventHandler[KeyEvent] {
 		override def handle(ev: KeyEvent) {
 			game.keyPressed(ev)
 		}
 	})
 
-	game_loop(0)
+	drawMaze(game.mazeGrid)
+	loop(0)
 }
 
 
