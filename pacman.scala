@@ -29,17 +29,15 @@ class Maze(val mapSource: scala.io.Source) {
 				val columnIndex = tile._2
 
 				val tileType = tile._1 match {
-					case 'X' => Space()
-					case '-' => Wall()
+					case 'X' => Wall()
+					case '-' => Space()
 				}
 
-				// X, Y	
 				(columnIndex, rowIndex) -> tileType
 			}
 		}.toIndexedSeq.flatten.toMap
 	}
 }
-
 
 sealed trait Direction
 case object East extends Direction
@@ -49,29 +47,48 @@ case object South extends Direction
 
 trait Movable extends Collidable {
 	// NOTE: Is immutability possible here?
+	val id = java.util.UUID.randomUUID.toString
+
 	var direction: Direction
-	var x: Int
-	var y: Int
+	var directionRequest: Direction
+
+	// This is for the center of the rectangle.
+	var x: Double
+	var y: Double
+
+	// Makes the code more unstable...
+	// But, I don't have any better ideas
+	def atCenterOfTile: Boolean = {
+		def check(r: Double): Boolean = {
+			(r * 1000).toInt - (r.toInt * 1000) == 500 ||
+			(r * 1000).toInt - (r.toInt * 1000) == 499 ||
+			(r * 1000).toInt - (r.toInt * 1000) == 501
+		}
+
+		val res = check(x) && check(y)
+		if (res) println(res)
+		res
+	} 
 
 	// Note: speed in x is the same as speed in y.
-	val speed: Int
-	val speedMs = speed / 1000
+	val speed: Double = 4.0
+	val speedMs: Double = speed / 1000
 
 	// NOTE: Would be cool to make this work with arbitrary curves.
 	val width: Int
 	val height: Int
 }
 
-class Ghost(var x: Int, var y: Int) extends Movable {
+class Ghost(var x: Double, var y: Double) extends Movable {
 	var direction: Direction = immutable.Set[Direction](East, West, North, South).last
-	val speed = 1
+	var directionRequest: Direction = direction
 	val width = 1
 	val height = 1
 }
 
-class Player(var x: Int, var y: Int) extends Movable {
+class Player(var x: Double, var y: Double) extends Movable {
 	var direction: Direction = East
-	val speed = 1
+	var directionRequest: Direction = direction
 	val width = 1
 	val height = 1
 }
@@ -90,24 +107,65 @@ class World extends {
 		movables = movables - elem
 	}
 
-	def nudgeMovable(elem: Movable, timeMs: Int) {
-		val direction = elem.direction
+	def getAllowedDirections(elem: Movable): immutable.Set[Direction] = {
+		// This makes the code a little unstable, but we'll put up with it for now :).
+		if (elem.atCenterOfTile) {
+			// Is in direction of blah... would be useful here.
+			def tileExists(coordinateX: Int, coordinateY: Int): Boolean = {
+				map.grid.contains(coordinateX, coordinateY)
+			}
 
-		direction match {
-			case East => elem.x = elem.x + elem.speed * timeMs
-			case West => elem.x = elem.x - elem.speed * timeMs
-			case North => elem.y = elem.y + elem.speed * timeMs
-			case South => elem.y = elem.y - elem.speed * timeMs
+			def tileIsSpace(coordinateX: Int, coordinateY: Int): Boolean = {
+				map.grid(coordinateX, coordinateY) match {
+					case _:Space => true
+					case _     => false
+				} 
+			}
+
+			def tileExistsAndIsSpace(coordinateX: Int, coordinateY: Int): Boolean = {
+				tileExists(coordinateX, coordinateY)  && tileIsSpace(coordinateX, coordinateY)
+			}
+			
+			var allowedDirections = immutable.Set[Direction]()
+
+			if (tileExistsAndIsSpace(elem.x.toInt + 1, elem.y.toInt)) allowedDirections = allowedDirections + East
+			if (tileExistsAndIsSpace(elem.x.toInt - 1, elem.y.toInt)) allowedDirections = allowedDirections + West
+			if (tileExistsAndIsSpace(elem.x.toInt, elem.y.toInt + 1)) allowedDirections = allowedDirections + South
+			if (tileExistsAndIsSpace(elem.x.toInt, elem.y.toInt - 1)) allowedDirections = allowedDirections + North
+
+			allowedDirections
+
+		} else {
+			if (immutable.Set[Direction](East, West).contains(elem.direction)) {
+				immutable.Set[Direction](East, West)
+			} else {
+				immutable.Set[Direction](North, South)
+			}
 		}
 	}
-	
-	def canNudgeMovable(elem: Movable) {}
+
+	def nudgeMovable(elem: Movable, timeMs: Int) {
+		val allowedDirections = getAllowedDirections(elem)
+
+		if (elem.direction != elem.directionRequest && allowedDirections.contains(elem.directionRequest)) {
+			elem.direction = elem.directionRequest
+		}
+
+		if (allowedDirections.contains(elem.direction)) {
+			elem.direction match {
+				case East => elem.x = elem.x + elem.speedMs * timeMs
+				case West => elem.x = elem.x - elem.speedMs * timeMs
+				case South => elem.y = elem.y + elem.speedMs * timeMs
+				case North => elem.y = elem.y - elem.speedMs * timeMs
+			}
+		}
+	}
 
 	// But in the real world, all things move (or don't) at the same time.
 	// map.movables.foreach
 	def update(elapsedTimeMs: Int) {
 		(0 to elapsedTimeMs).foreach { _ =>
-			movables.map { m => nudgeMovable(m, 1) }
+			movables.foreach { m => nudgeMovable(m, 1) }
 		} 
 	}
 }
@@ -117,11 +175,11 @@ class Game {
 	val maze = world.map
 	val mazeGrid = world.map.grid
 
-	val player = new Player(x = 0, y = 0)
+	val player = new Player(x = 0.5, y = 0.5)
 	world.addMovable(player)
 
 	def keyPressed(ev: KeyEvent) {
-		this.player.direction = PacpersonInput.getKey(ev) match {
+		this.player.directionRequest = PacpersonInput.getKey(ev) match {
 			case PacpersonInput.DOWN => South
 			case PacpersonInput.UP => North
 			case PacpersonInput.RIGHT => East

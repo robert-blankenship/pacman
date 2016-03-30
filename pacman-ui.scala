@@ -1,6 +1,7 @@
 package pacman
 
 import collection.immutable
+import collection.mutable
 
 import javafx.concurrent.Task
 import javafx.concurrent.WorkerStateEvent
@@ -15,6 +16,10 @@ import javafx.scene.layout.Pane
 import javafx.scene.input.KeyEvent
 
 class PacmanUI extends Application {
+	val WallColor = Color.BLUE
+	val PathwayColor = Color.BLACK
+	val PlayerColor = Color.YELLOW
+
 	val game = new Game()
 	
 	val tileSize = 20
@@ -34,19 +39,32 @@ class PacmanUI extends Application {
 		root.getChildren.clear()
 
 		mazeGrid.map { tile =>
-			println(tile)
 			val coordinates = tile._1
 			val element = tile._2
 
 			val rect = new Rectangle(tileSize, tileSize, element match {
-					case _: Wall => Color.WHITE
-					case _: Space => Color.BLUE
-					case _: Filled => Color.BLACK
+					case _: Wall => this.WallColor
+					case _: Space => this.PathwayColor
+					case _: Filled => this.PathwayColor
 				})
 			rect.setX(coordinates._1 * tileSize)
 			rect.setY(coordinates._2 * tileSize)
-			
 			root.getChildren.add(rect)	
+		}
+	}
+
+	val movablesById = mutable.Map[String, Circle]()
+
+	def drawMovables(movables: immutable.Set[Movable]) {
+		movables.foreach { (elem: Movable) =>
+			if (movablesById.isDefinedAt(elem.id) == false) {
+				movablesById(elem.id) = new Circle()
+				movablesById(elem.id).setRadius(10)
+				root.getChildren.add(movablesById(elem.id))
+			}
+			movablesById(elem.id).setFill(PlayerColor)
+			movablesById(elem.id).setCenterX(elem.x * tileSize)
+			movablesById(elem.id).setCenterY(elem.y * tileSize)
 		}
 	}
 
@@ -58,6 +76,7 @@ class PacmanUI extends Application {
 				Thread.sleep(loopSleepDurationMilliseconds)
 			}
 			override def succeeded() {
+				drawMovables(game.world.movables)
 				loop(i + 1)
 			}
 		}
