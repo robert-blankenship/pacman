@@ -23,8 +23,8 @@ class PacmanUI extends Application {
 	val game = new Game()
 	
 	val tileSize = 20
-	val tilesX = game.maze.map(_._1._2).max // <3 Scala
-	val tilesY = game.maze.map(_._1._2).max
+	val tilesX = game.maze.map(_._1._1).max + 1// <3 Scala
+	val tilesY = game.maze.map(_._1._2).max + 1
 
 	println(tilesX, tilesY)
 

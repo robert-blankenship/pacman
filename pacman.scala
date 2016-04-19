@@ -66,7 +66,6 @@ class Player(var x: Double, var y: Double) extends Movable {
 	val height = 1
 }
 
-
 class World {
 	def createMaze(mapLines: List[String]): immutable.Map[(Int, Int), DrawableElement] = {
 		mapLines.zipWithIndex.map { (row: Tuple2[String, Int]) =>
@@ -80,8 +79,8 @@ class World {
 					case 'X' => Wall()
 					case '-' => Space()
 				}
-
-				(columnIndex, rowIndex) -> tileType
+				
+                (columnIndex, rowIndex) -> tileType
 			}
 		}.toIndexedSeq.flatten.toMap
 	}
@@ -114,10 +113,10 @@ class World {
 			if (tileExistsAndIsSpace(elem.x.toInt, elem.y.toInt + 1)) allowedDirections = allowedDirections + South
 			if (tileExistsAndIsSpace(elem.x.toInt, elem.y.toInt - 1)) allowedDirections = allowedDirections + North
 
-            val mazeLength = maze.map(_._1._2).max
+            val mazeWidth = maze.map(_._1._1).max + 1
 
-            if (elem.x.toInt > mazeLength && tileExistsAndIsSpace(0, elem.y.toInt)) allowedDirections = allowedDirections + East
-            if ((elem.x - 0.01).toInt == 0 && tileExistsAndIsSpace(mazeLength - 1, elem.y.toInt)) allowedDirections = allowedDirections + West
+            if (elem.x.toInt > mazeWidth - 2 && tileExistsAndIsSpace(0, elem.y.toInt)) allowedDirections = allowedDirections + East
+            if ((elem.x - 0.01).toInt == 0 && tileExistsAndIsSpace(mazeWidth - 1, elem.y.toInt)) allowedDirections = allowedDirections + West
 
 			allowedDirections
 		} else {
@@ -148,10 +147,10 @@ class World {
 					}
 				}
 
-                val mazeLength = maze.map(_._1._2).max
+                val mazeWidth = maze.map(_._1._1).max + 1
 
-                if (elem.x > mazeLength || elem.x < 0) {
-                    elem.x = mazeLength - elem.x.abs
+                if (elem.x > mazeWidth || elem.x < 0 ) {
+                    elem.x = mazeWidth - elem.x.abs
                 }
 			}
 		} 
