@@ -14,31 +14,6 @@ case class Space() extends NonCollidable
 case class Wall() extends Collidable
 case class Filled() extends Collidable
 
-class Maze(val mapSource: scala.io.Source) {
-	val mapLines = mapSource.getLines().toList
-
-	val height = mapLines.length
-	val width = mapLines.apply(1).length
-	
-	val grid: immutable.Map[(Int, Int), DrawableElement] = {
-		mapLines.zipWithIndex.map { (row: Tuple2[String, Int]) =>
-			val rowString = row._1
-			val rowIndex = row._2
-
-			rowString.zipWithIndex.map { (tile: Tuple2[Char, Int]) =>
-				val columnIndex = tile._2
-
-				val tileType = tile._1 match {
-					case 'X' => Wall()
-					case '-' => Space()
-				}
-
-				(columnIndex, rowIndex) -> tileType
-			}
-		}.toIndexedSeq.flatten.toMap
-	}
-}
-
 sealed trait Direction
 case object East extends Direction
 case object West extends Direction
@@ -65,9 +40,7 @@ trait Movable extends Collidable {
 			(r * 1000).toInt - (r.toInt * 1000) == 501
 		}
 
-		val res = check(x) && check(y)
-		if (res) println(res)
-		res
+		check(x) && check(y)
 	} 
 
 	// Note: speed in x is the same as speed in y.
@@ -94,31 +67,39 @@ class Player(var x: Double, var y: Double) extends Movable {
 }
 
 
-class World extends {
-	val map = new Maze(scala.io.Source.fromFile("mazes/dev.txt"))
+class World {
+	def createMaze(mapLines: List[String]): immutable.Map[(Int, Int), DrawableElement] = {
+		mapLines.zipWithIndex.map { (row: Tuple2[String, Int]) =>
+			val rowString = row._1
+			val rowIndex = row._2
+
+			rowString.zipWithIndex.map { (tile: Tuple2[Char, Int]) =>
+				val columnIndex = tile._2
+
+				val tileType = tile._1 match {
+					case 'X' => Wall()
+					case '-' => Space()
+				}
+
+				(columnIndex, rowIndex) -> tileType
+			}
+		}.toIndexedSeq.flatten.toMap
+	}
 
 	var movables = immutable.Set[Movable]()
 
-	def addMovable(elem: Movable) {
-		movables = movables + elem
-	}
-
-	def removeMovable(elem: Movable) {
-		movables = movables - elem
-	}
-
-	def getAllowedDirections(elem: Movable): immutable.Set[Direction] = {
+	def getAllowedDirections(elem: Movable, maze: immutable.Map[(Int, Int), DrawableElement]): immutable.Set[Direction] = {
 		// This makes the code a little unstable, but we'll put up with it for now :).
 		if (elem.atCenterOfTile) {
 			// Is in direction of blah... would be useful here.
 			def tileExists(coordinateX: Int, coordinateY: Int): Boolean = {
-				map.grid.contains(coordinateX, coordinateY)
+				maze.contains(coordinateX, coordinateY)
 			}
 
 			def tileIsSpace(coordinateX: Int, coordinateY: Int): Boolean = {
-				map.grid(coordinateX, coordinateY) match {
+				maze(coordinateX, coordinateY) match {
 					case _:Space => true
-					case _     => false
+					case _       => false
 				} 
 			}
 
@@ -133,8 +114,12 @@ class World extends {
 			if (tileExistsAndIsSpace(elem.x.toInt, elem.y.toInt + 1)) allowedDirections = allowedDirections + South
 			if (tileExistsAndIsSpace(elem.x.toInt, elem.y.toInt - 1)) allowedDirections = allowedDirections + North
 
-			allowedDirections
+            val mazeLength = maze.map(_._1._2).max
 
+            if (elem.x.toInt > mazeLength && tileExistsAndIsSpace(0, elem.y.toInt)) allowedDirections = allowedDirections + East
+            if ((elem.x - 0.01).toInt == 0 && tileExistsAndIsSpace(mazeLength - 1, elem.y.toInt)) allowedDirections = allowedDirections + West
+
+			allowedDirections
 		} else {
 			if (immutable.Set[Direction](East, West).contains(elem.direction)) {
 				immutable.Set[Direction](East, West)
@@ -144,80 +129,76 @@ class World extends {
 		}
 	}
 
-	def nudgeMovable(elem: Movable, timeMs: Int) {
-		val allowedDirections = getAllowedDirections(elem)
-
-		if (elem.direction != elem.directionRequest && allowedDirections.contains(elem.directionRequest)) {
-			elem.direction = elem.directionRequest
-		}
-
-		if (allowedDirections.contains(elem.direction)) {
-			elem.direction match {
-				case East => elem.x = elem.x + elem.speedMs * timeMs
-				case West => elem.x = elem.x - elem.speedMs * timeMs
-				case South => elem.y = elem.y + elem.speedMs * timeMs
-				case North => elem.y = elem.y - elem.speedMs * timeMs
-			}
-		}
-	}
-
 	// But in the real world, all things move (or don't) at the same time.
-	// map.movables.foreach
-	def update(elapsedTimeMs: Int) {
+	def update(maze: immutable.Map[(Int, Int), DrawableElement], elapsedTimeMs: Int) {
 		(0 to elapsedTimeMs).foreach { _ =>
-			movables.foreach { m => nudgeMovable(m, 1) }
+			this.movables.foreach { elem =>
+				val allowedDirections = getAllowedDirections(elem, maze)
+				
+				if (elem.direction != elem.directionRequest && allowedDirections.contains(elem.directionRequest)) {
+					elem.direction = elem.directionRequest
+				}
+
+				if (allowedDirections.contains(elem.direction)) {
+					elem.direction match {
+						case East => elem.x = elem.x + elem.speedMs * 1
+						case West => elem.x = elem.x - elem.speedMs * 1
+						case South => elem.y = elem.y + elem.speedMs * 1
+						case North => elem.y = elem.y - elem.speedMs * 1
+					}
+				}
+
+                val mazeLength = maze.map(_._1._2).max
+
+                if (elem.x > mazeLength || elem.x < 0) {
+                    elem.x = mazeLength - elem.x.abs
+                }
+			}
 		} 
 	}
 }
 
 class Game {
 	val world = new World()
-	val maze = world.map
-	val mazeGrid = world.map.grid
+
+	val maze = {
+		val mapSource = scala.io.Source.fromFile("mazes/dev.txt")
+		world.createMaze(mapSource.getLines().toList) 
+	}
 
 	val player = new Player(x = 0.5, y = 0.5)
-	world.addMovable(player)
+	val ghost1 = new Ghost(x = 10.5, y = 10.5)
+
+	world.movables += player
+	world.movables += ghost1
 
 	def keyPressed(ev: KeyEvent) {
-		this.player.directionRequest = PacpersonInput.getKey(ev) match {
-			case PacpersonInput.DOWN => South
-			case PacpersonInput.UP => North
-			case PacpersonInput.RIGHT => East
-			case PacpersonInput.LEFT => West
+		this.player.directionRequest = ev.getCode match {
+			case KeyCode.DOWN => South
+			case KeyCode.UP => North
+			case KeyCode.RIGHT => East
+			case KeyCode.LEFT => West
 		}
 	}
 
-	val loopSleepDurationMilliseconds = 10
-	val loop: Thread = new Thread {
-		override def run {
-			while (true) {
-				Thread.sleep(loopSleepDurationMilliseconds)
-				world.update(loopSleepDurationMilliseconds)
+	val gameThread = {
+		// Boilerplate
+		val loopSleepDurationMilliseconds = 10
+		val gameLoop = new Runnable {
+			def run {
+				while (true) {
+					Thread.sleep(loopSleepDurationMilliseconds)
+					world.update(maze, loopSleepDurationMilliseconds)
+				}
 			}
 		}
+		new Thread(gameLoop)
 	}
 
-	loop.start()
-}
-
-object PacpersonInput {
-	sealed trait Key
-	case object DOWN extends Key
-	case object UP extends Key
-	case object LEFT extends Key
-	case object RIGHT extends Key
-	def getKey(ev: KeyEvent): PacpersonInput.Key = {
-		ev.getCode match {
-			case KeyCode.DOWN => DOWN
-			case KeyCode.UP => UP
-			case KeyCode.LEFT => LEFT
-			case KeyCode.RIGHT => RIGHT
-		}
-	}
+	gameThread.start()
 }
 
 object Game extends App {
 	javafx.application.Application.launch(classOf[PacmanUI]);
 }
-
 

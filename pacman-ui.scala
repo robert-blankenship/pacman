@@ -23,8 +23,10 @@ class PacmanUI extends Application {
 	val game = new Game()
 	
 	val tileSize = 20
-	val tilesX = game.maze.width
-	val tilesY = game.maze.height
+	val tilesX = game.maze.map(_._1._2).max // <3 Scala
+	val tilesY = game.maze.map(_._1._2).max
+
+	println(tilesX, tilesY)
 
 	val root = new Group()
 	val scene = new Scene(root, tilesX * tileSize, tilesY * tileSize)
@@ -35,10 +37,10 @@ class PacmanUI extends Application {
 		primaryStage.show()
 	}
 
-	def drawMaze(mazeGrid: immutable.Map[(Int,Int), DrawableElement]) {
+	def drawMaze(maze: immutable.Map[(Int,Int), DrawableElement]) {
 		root.getChildren.clear()
 
-		mazeGrid.map { tile =>
+		maze.map { tile =>
 			val coordinates = tile._1
 			val element = tile._2
 
@@ -91,7 +93,7 @@ class PacmanUI extends Application {
 		}
 	})
 
-	drawMaze(game.mazeGrid)
+	drawMaze(game.maze)
 	loop(0)
 }
 
