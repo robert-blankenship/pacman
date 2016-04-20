@@ -40,7 +40,7 @@ class PacmanUI extends Application {
 	def drawMaze(maze: immutable.Map[(Int,Int), DrawableElement]) {
 		root.getChildren.clear()
 
-		maze.map { tile =>
+		maze.foreach { tile =>
 			val coordinates = tile._1
 			val element = tile._2
 
@@ -62,13 +62,46 @@ class PacmanUI extends Application {
 			if (movablesById.isDefinedAt(elem.id) == false) {
 				movablesById(elem.id) = new Circle()
 				movablesById(elem.id).setRadius(10)
+                movablesById(elem.id).setFill(PlayerColor)
 				root.getChildren.add(movablesById(elem.id))
 			}
-			movablesById(elem.id).setFill(PlayerColor)
 			movablesById(elem.id).setCenterX(elem.x * tileSize)
 			movablesById(elem.id).setCenterY(elem.y * tileSize)
 		}
 	}
+
+
+    val consumablesByCoordinates = mutable.Map[(Int, Int), Circle]()
+    def drawConsumables(maze: immutable.Map[(Int,Int), DrawableElement]) {
+        maze.foreach { case ((coordinates: (Int, Int), elem: DrawableElement)) => 
+            elem match {
+                case _: Wall =>
+                case _: Filled =>
+                case space: Space => 
+                    if (space.consumableAvailable && consumablesByCoordinates.isDefinedAt(coordinates) == false) {
+
+                        consumablesByCoordinates(coordinates) = new Circle()
+                        consumablesByCoordinates(coordinates).setFill(PlayerColor)
+
+                        consumablesByCoordinates(coordinates).setCenterX((coordinates._1 + 0.5) * tileSize)
+                        consumablesByCoordinates(coordinates).setCenterY((coordinates._2 + 0.5) * tileSize)
+
+                        space.consumable match {
+                            case _: Dot =>
+                                consumablesByCoordinates(coordinates).setRadius(3)
+                            case _: PowerPellet =>
+                                consumablesByCoordinates(coordinates).setRadius(5)
+                        }
+
+                        root.getChildren.add(consumablesByCoordinates(coordinates))
+
+                    } else if (consumablesByCoordinates.isDefinedAt(coordinates) && space.consumableAvailable == false) {
+                        root.getChildren.remove(consumablesByCoordinates(coordinates))
+                        consumablesByCoordinates -= coordinates
+                    }
+            }
+		}
+    }
 
 	val loopSleepDurationMilliseconds = 10
 
@@ -79,6 +112,7 @@ class PacmanUI extends Application {
 			}
 			override def succeeded() {
 				drawMovables(game.world.movables)
+				drawConsumables(game.maze)
 				loop(i + 1)
 			}
 		}
@@ -94,6 +128,7 @@ class PacmanUI extends Application {
 	})
 
 	drawMaze(game.maze)
+    drawConsumables(game.maze)
 	loop(0)
 }
 

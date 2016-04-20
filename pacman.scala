@@ -5,12 +5,20 @@ import collection.mutable
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent
 
+class Consumable
+case class Dot() extends Consumable
+case class PowerPellet() extends Consumable
+
 class DrawableElement()
 
 class NonCollidable() extends DrawableElement
 class Collidable() extends DrawableElement
 
-case class Space() extends NonCollidable
+case class Space() extends NonCollidable {
+    val consumable: Consumable = Dot()
+    var consumableAvailable: Boolean = true
+}
+
 case class Wall() extends Collidable
 case class Filled() extends Collidable
 
@@ -20,8 +28,8 @@ case object West extends Direction
 case object North extends Direction
 case object South extends Direction
 
+// NOTE: Is immutability possible here?
 trait Movable extends Collidable {
-	// NOTE: Is immutability possible here?
 	val id = java.util.UUID.randomUUID.toString
 
 	var direction: Direction
@@ -128,17 +136,25 @@ class World {
 		}
 	}
 
+    var _points = 0
+    def points = _points
+    def points_=(points: Integer) {
+        _points = points
+        println(s"Pellets eaten: $points")
+    }
+
 	// But in the real world, all things move (or don't) at the same time.
 	def update(maze: immutable.Map[(Int, Int), DrawableElement], elapsedTimeMs: Int) {
 		(0 to elapsedTimeMs).foreach { _ =>
 			this.movables.foreach { elem =>
-				val allowedDirections = getAllowedDirections(elem, maze)
-				
-				if (elem.direction != elem.directionRequest && allowedDirections.contains(elem.directionRequest)) {
+			
+                // Change direction
+				if (elem.direction != elem.directionRequest && getAllowedDirections(elem, maze).contains(elem.directionRequest)) {
 					elem.direction = elem.directionRequest
 				}
 
-				if (allowedDirections.contains(elem.direction)) {
+                // Update position.
+				if (getAllowedDirections(elem, maze).contains(elem.direction)) {
 					elem.direction match {
 						case East => elem.x = elem.x + elem.speedMs * 1
 						case West => elem.x = elem.x - elem.speedMs * 1
@@ -147,10 +163,31 @@ class World {
 					}
 				}
 
+                // Handle cross-over
                 val mazeWidth = maze.map(_._1._1).max + 1
-
                 if (elem.x > mazeWidth || elem.x < 0 ) {
                     elem.x = mazeWidth - elem.x.abs
+                }
+
+                // Handle any consumables.
+                val columnIndex = elem.x.floor.toInt
+                val rowIndex = elem.y.floor.toInt
+                // TODO: This getOrElse shouldn't be necessary.
+                maze.getOrElse((columnIndex, rowIndex), Wall()) match {
+                    case space: Space =>
+                        if (space.consumableAvailable) {
+                            elem match {
+                                case player: Player => space.consumable match {
+                                    case _: Dot =>
+                                        space.consumableAvailable = false
+                                        points += 1
+                                    case _: PowerPellet =>
+                                        space.consumableAvailable = false
+                                }
+                                case ghost: Ghost =>
+                            }
+                        }
+                    case _: DrawableElement =>
                 }
 			}
 		} 
@@ -177,6 +214,9 @@ class Game {
 			case KeyCode.UP => North
 			case KeyCode.RIGHT => East
 			case KeyCode.LEFT => West
+            case unrecognizedKey: KeyCode =>
+                println(s"Player pressed unrecognized key $unrecognizedKey")
+                this.player.directionRequest
 		}
 	}
 
