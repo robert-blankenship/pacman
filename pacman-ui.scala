@@ -3,12 +3,13 @@ package pacman
 import collection.immutable
 import collection.mutable
 
+import javafx.animation.AnimationTimer
 import javafx.concurrent.Task
 import javafx.concurrent.WorkerStateEvent
 import javafx.event.EventHandler
 import javafx.application.Application
-import javafx.scene.Group
-import javafx.scene.Scene
+import javafx.scene.{ Group, Scene, Node }
+import javafx.scene.text.{ Text, TextAlignment }
 import javafx.scene.shape._
 import javafx.scene.paint.Color
 import javafx.scene.layout.Pane
@@ -24,10 +25,8 @@ class PacmanUI extends Application {
 	val game = new Game()
 	
 	val tileSize = 20
-	val tilesX = game.maze.map(_._1._1).max + 1// <3 Scala
+	val tilesX = game.maze.map(_._1._1).max + 1
 	val tilesY = game.maze.map(_._1._2).max + 1
-
-	println(tilesX, tilesY)
 
 	val root = new Group()
 	val scene = new Scene(root, tilesX * tileSize, tilesY * tileSize)
@@ -38,10 +37,12 @@ class PacmanUI extends Application {
 		primaryStage.show()
 	}
 
+
+    var rects = List[Rectangle]()
 	def drawMaze(maze: immutable.Map[(Int,Int), DrawableElement]) {
 		root.getChildren.clear()
 
-		maze.foreach { tile =>
+		rects = maze.map { tile =>
 			val coordinates = tile._1
 			val element = tile._2
 
@@ -52,8 +53,9 @@ class PacmanUI extends Application {
 				})
 			rect.setX(coordinates._1 * tileSize)
 			rect.setY(coordinates._2 * tileSize)
-			root.getChildren.add(rect)	
-		}
+			root.getChildren.add(rect)
+            rect
+		}.toList
 	}
 
 	val movablesById = mutable.Map[String, Circle]()
@@ -107,7 +109,35 @@ class PacmanUI extends Application {
 		}
     }
 
+
+
+
+    def gameEndAnimation(text: String) {
+      def loop(i: Int) {
+        val task = new Task[Unit] {
+          override def call(): Unit = {
+              Thread.sleep(10)
+          }
+          override def succeeded() {
+            rects(i).setFill(Color.BLACK)
+            loop(i + 1)
+          }
+        }
+        val t = new Thread(task, s"game-end-{i}")
+        t.setDaemon(true)
+        t.start()
+      }
+      loop(0)
+
+      val endText = new Text(tilesX/2 * tileSize, tilesY/2 * tileSize, "Thanks for playing!")
+      endText.setFill(Color.WHITE)
+      endText.setTextAlignment(TextAlignment.CENTER)
+      root.getChildren.add(endText)
+    }
+
 	val loopSleepDurationMilliseconds = 10
+
+    var lastThread = false
 
 	def loop(i: Integer) {
 		val task = new Task[Unit] {
@@ -117,7 +147,14 @@ class PacmanUI extends Application {
 			override def succeeded() {
 				drawMovables(game.world.movables)
 				drawConsumables(game.maze)
-				loop(i + 1)
+
+                if (game.isOver) {
+                  println("Game is over.")
+                  lastThread = true
+                  gameEndAnimation("text")
+                }
+                
+                if (lastThread == false) loop(i + 1)
 			}
 		}
 		val t = new Thread(task, s"frame-{i}")

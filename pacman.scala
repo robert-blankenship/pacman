@@ -137,6 +137,7 @@ class World {
 		}
 	}
 
+
     var _points = 0
     def points = _points
     def points_=(points: Integer) {
@@ -202,6 +203,7 @@ class World {
                                     case _: Dot =>
                                         space.consumableAvailable = false
                                         points += 1
+
                                     case _: PowerPellet =>
                                         space.consumableAvailable = false
                                 }
@@ -238,6 +240,8 @@ class Game {
       new Ghost(x, y)
     }
 
+    var isOver = false
+
 	world.movables += player
 	world.movables += ghost1
 
@@ -260,6 +264,10 @@ class Game {
                   Thread.sleep(loopSleepDurationMilliseconds)
                   world.handleGhostAI()
                   world.update(maze, loopSleepDurationMilliseconds)
+
+                  if (world.points >= maze.count(_._2.isInstanceOf[Space])) {
+                    isOver = true
+                  }
               }
           }
        })
