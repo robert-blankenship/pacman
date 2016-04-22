@@ -218,7 +218,7 @@ class Game {
 	val world = new World()
 
 	val maze = {
-		val mapSource = scala.io.Source.fromFile("mazes/alpha-map-1.txt")
+		val mapSource = scala.io.Source.fromFile("mazes/map-1.txt")
 		world.createMaze(mapSource.getLines().toList) 
 	}
 
