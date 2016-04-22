@@ -72,6 +72,7 @@ class Player(var x: Double, var y: Double) extends Movable {
 	var directionRequest: Direction = direction
 	val width = 1
 	val height = 1
+
 }
 
 class World {
@@ -143,6 +144,25 @@ class World {
         println(s"Pellets eaten: $points")
     }
 
+
+    def handleGhostAI() {
+      // Find a path to the player.
+      val ghost = movables.filter(_.isInstanceOf[Ghost]).toList(0)
+      val player = movables.filter(_.isInstanceOf[Player]).toList(0)
+
+      val slope = (player.y - ghost.y) / (player.x - ghost.x)
+
+      ghost.directionRequest = {
+        if ((slope >= 0 && slope < 1) || (slope < 0 && slope > -1)) {
+          if (ghost.x > player.x) West else East
+        } else if (slope >= 1 || slope <= -1 || slope.isInfinite()) {
+          if (ghost.y > player.y) North else South
+        } else {
+          ghost.direction
+        }
+      }
+    }
+
 	// But in the real world, all things move (or don't) at the same time.
 	def update(maze: immutable.Map[(Int, Int), DrawableElement], elapsedTimeMs: Int) {
 		(0 to elapsedTimeMs).foreach { _ =>
@@ -177,6 +197,7 @@ class World {
                     case space: Space =>
                         if (space.consumableAvailable) {
                             elem match {
+                                case ghost: Ghost =>
                                 case player: Player => space.consumable match {
                                     case _: Dot =>
                                         space.consumableAvailable = false
@@ -184,7 +205,6 @@ class World {
                                     case _: PowerPellet =>
                                         space.consumableAvailable = false
                                 }
-                                case ghost: Ghost =>
                             }
                         }
                     case _: DrawableElement =>
@@ -198,12 +218,25 @@ class Game {
 	val world = new World()
 
 	val maze = {
-		val mapSource = scala.io.Source.fromFile("mazes/dev.txt")
+		val mapSource = scala.io.Source.fromFile("mazes/alpha-map-1.txt")
 		world.createMaze(mapSource.getLines().toList) 
 	}
 
-	val player = new Player(x = 0.5, y = 0.5)
-	val ghost1 = new Ghost(x = 10.5, y = 10.5)
+	val player = {
+      // Spawn the player at the top left.
+      val startingTile = maze.find(_._2.isInstanceOf[Space]).get
+      val x = startingTile._1._1 + 0.5
+      val y = startingTile._1._2 + 0.5
+      new Player(x, y)
+    }
+
+	val ghost1 = {
+      // Spawn the ghost at the bottom right.
+      val startingTile = maze.toList.reverse.find(_._2.isInstanceOf[Space]).get
+      val x = startingTile._1._1 + 0.5
+      val y = startingTile._1._2 + 0.5
+      new Ghost(x, y)
+    }
 
 	world.movables += player
 	world.movables += ghost1
@@ -220,21 +253,18 @@ class Game {
 		}
 	}
 
-	val gameThread = {
-		// Boilerplate
-		val loopSleepDurationMilliseconds = 10
-		val gameLoop = new Runnable {
-			def run {
-				while (true) {
-					Thread.sleep(loopSleepDurationMilliseconds)
-					world.update(maze, loopSleepDurationMilliseconds)
-				}
-			}
-		}
-		new Thread(gameLoop)
-	}
+	val gameThread = new Thread(new Runnable {
+          def run {
+              val loopSleepDurationMilliseconds = 10
+              while (true) {
+                  Thread.sleep(loopSleepDurationMilliseconds)
+                  world.handleGhostAI()
+                  world.update(maze, loopSleepDurationMilliseconds)
+              }
+          }
+       })
 
-	gameThread.start()
+    gameThread.start()
 }
 
 object Game extends App {

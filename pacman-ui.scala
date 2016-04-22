@@ -19,6 +19,7 @@ class PacmanUI extends Application {
 	val WallColor = Color.BLUE
 	val PathwayColor = Color.BLACK
 	val PlayerColor = Color.YELLOW
+	val GhostColor = Color.PURPLE
 
 	val game = new Game()
 	
@@ -62,7 +63,10 @@ class PacmanUI extends Application {
 			if (movablesById.isDefinedAt(elem.id) == false) {
 				movablesById(elem.id) = new Circle()
 				movablesById(elem.id).setRadius(10)
-                movablesById(elem.id).setFill(PlayerColor)
+                elem match {
+                  case _: Player => movablesById(elem.id).setFill(PlayerColor)
+                  case _: Ghost => movablesById(elem.id).setFill(GhostColor)
+                }
 				root.getChildren.add(movablesById(elem.id))
 			}
 			movablesById(elem.id).setCenterX(elem.x * tileSize)
