@@ -14,8 +14,8 @@ import javafx.scene.text.{ Text, TextAlignment }
 import javafx.scene.shape._
 import javafx.scene.paint.Color
 import javafx.scene.layout.Pane
-
 import javafx.scene.input.KeyEvent
+
 
 class PacmanUI extends Application {
 	val WallColor = Color.BLUE
@@ -80,32 +80,38 @@ class PacmanUI extends Application {
 
     val consumablesByCoordinates = mutable.Map[(Int, Int), Circle]()
     def drawConsumables(maze: immutable.Map[(Int,Int), DrawableElement]) {
-        maze.foreach { case ((coordinates: (Int, Int), elem: DrawableElement)) => 
-            elem match {
-                case _: Wall =>
-                case _: Filled =>
-                case space: Space => 
-                    if (space.consumableAvailable && consumablesByCoordinates.isDefinedAt(coordinates) == false) {
 
-                        consumablesByCoordinates(coordinates) = new Circle()
-                        consumablesByCoordinates(coordinates).setFill(PlayerColor)
+      def removeConsumable(coordinates: (Int, Int)) {
+        (new AudioClip("file:sounds/waka-waka.mp3")).play()
+        root.getChildren.remove(consumablesByCoordinates(coordinates))
+        consumablesByCoordinates -= coordinates
+      }
 
-                        consumablesByCoordinates(coordinates).setCenterX((coordinates._1 + 0.5) * tileSize)
-                        consumablesByCoordinates(coordinates).setCenterY((coordinates._2 + 0.5) * tileSize)
+      def addConsumable(coordinates: (Int, Int), consumable: DrawableElement) {
+        consumablesByCoordinates(coordinates) = new Circle()
+        consumablesByCoordinates(coordinates).setFill(PlayerColor)
+        consumablesByCoordinates(coordinates).setCenterX((coordinates._1 + 0.5) * tileSize)
+        consumablesByCoordinates(coordinates).setCenterY((coordinates._2 + 0.5) * tileSize)
+        consumable match {
+            case _: Dot => consumablesByCoordinates(coordinates).setRadius(3)
+            case _: PowerPellet => consumablesByCoordinates(coordinates).setRadius(5)
+        }
+        root.getChildren.add(consumablesByCoordinates(coordinates))
+      }
 
-                        space.consumable match {
-                            case _: Dot => consumablesByCoordinates(coordinates).setRadius(3)
-                            case _: PowerPellet => consumablesByCoordinates(coordinates).setRadius(5)
-                        }
-
-                        root.getChildren.add(consumablesByCoordinates(coordinates))
-
-                    } else if (consumablesByCoordinates.isDefinedAt(coordinates) && space.consumableAvailable == false) {
-                        root.getChildren.remove(consumablesByCoordinates(coordinates))
-                        consumablesByCoordinates -= coordinates
-                    }
-            }
-		}
+      maze.foreach {
+        case ((coordinates: (Int, Int), elem: DrawableElement)) => 
+          elem match {
+              case _: Wall => 
+              case _: Filled => 
+              case space: Space => 
+                  if (space.consumableAvailable && consumablesByCoordinates.isDefinedAt(coordinates) == false) {
+                    addConsumable(coordinates, space.consumable)
+                  } else if (consumablesByCoordinates.isDefinedAt(coordinates) && space.consumableAvailable == false) {
+                    removeConsumable(coordinates)
+                  }
+          }
+      }
     }
 
 	def loop(i: Integer, game: Game) {
@@ -154,6 +160,7 @@ class PacmanUI extends Application {
       textNode.setFill(Color.WHITE)
       textNode.setTextAlignment(TextAlignment.CENTER)
       root.getChildren.add(textNode)
+      (new AudioClip("file:sounds/death.mp3")).play()
       animate()
     }
 
