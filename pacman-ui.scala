@@ -15,6 +15,8 @@ import javafx.scene.shape._
 import javafx.scene.paint.Color
 import javafx.scene.layout.Pane
 import javafx.scene.input.KeyEvent
+import javafx.scene.media.{ MediaPlayer, Media }
+import javafx.util.Duration
 
 
 class PacmanUI extends Application {
@@ -22,6 +24,7 @@ class PacmanUI extends Application {
 	val PathwayColor = Color.BLACK
 	val PlayerColor = Color.YELLOW
 	val GhostColor = Color.PURPLE
+    val PelletColor = PlayerColor
 
 	val game = new Game()
 	
@@ -82,19 +85,19 @@ class PacmanUI extends Application {
     def drawConsumables(maze: immutable.Map[(Int,Int), DrawableElement]) {
 
       def removeConsumable(coordinates: (Int, Int)) {
-        (new AudioClip("file:sounds/waka-waka.mp3")).play()
+        // (new AudioClip("file:sounds/waka-waka.mp3")).play()
         root.getChildren.remove(consumablesByCoordinates(coordinates))
         consumablesByCoordinates -= coordinates
       }
 
       def addConsumable(coordinates: (Int, Int), consumable: DrawableElement) {
         consumablesByCoordinates(coordinates) = new Circle()
-        consumablesByCoordinates(coordinates).setFill(PlayerColor)
+        consumablesByCoordinates(coordinates).setFill(PelletColor)
         consumablesByCoordinates(coordinates).setCenterX((coordinates._1 + 0.5) * tileSize)
         consumablesByCoordinates(coordinates).setCenterY((coordinates._2 + 0.5) * tileSize)
         consumable match {
-            case _: Dot => consumablesByCoordinates(coordinates).setRadius(3)
-            case _: PowerPellet => consumablesByCoordinates(coordinates).setRadius(5)
+          case _: Dot => consumablesByCoordinates(coordinates).setRadius(3)
+          case _: PowerPellet => consumablesByCoordinates(coordinates).setRadius(5)
         }
         root.getChildren.add(consumablesByCoordinates(coordinates))
       }
@@ -102,14 +105,14 @@ class PacmanUI extends Application {
       maze.foreach {
         case ((coordinates: (Int, Int), elem: DrawableElement)) => 
           elem match {
-              case _: Wall => 
-              case _: Filled => 
-              case space: Space => 
-                  if (space.consumableAvailable && consumablesByCoordinates.isDefinedAt(coordinates) == false) {
-                    addConsumable(coordinates, space.consumable)
-                  } else if (consumablesByCoordinates.isDefinedAt(coordinates) && space.consumableAvailable == false) {
-                    removeConsumable(coordinates)
-                  }
+            case _: Wall => 
+            case _: Filled => 
+            case space: Space => 
+              if (space.consumableAvailable && consumablesByCoordinates.isDefinedAt(coordinates) == false) {
+                addConsumable(coordinates, space.consumable)
+              } else if (consumablesByCoordinates.isDefinedAt(coordinates) && space.consumableAvailable == false) {
+                removeConsumable(coordinates)
+              }
           }
       }
     }
@@ -123,6 +126,7 @@ class PacmanUI extends Application {
                   drawMovables(game.world.movables)
                   (new AudioClip("file:sounds/opening-song.mp3")).play()
                   Thread.sleep(4000) // Wait for clip to play
+                  //startSiren()
                   game.start()
                 } else {
 				  Thread.sleep(10) // Wait before drawing again
@@ -162,6 +166,20 @@ class PacmanUI extends Application {
       root.getChildren.add(textNode)
       (new AudioClip("file:sounds/death.mp3")).play()
       animate()
+    }
+
+    def startSiren() {
+      def loop(i: Int) {
+        val task = new Task[Unit] {
+          override def call(): Unit = Thread.sleep(2000)
+          override def succeeded() {
+            (new AudioClip("file:sounds/siren.mp3")).play()
+            loop(i + 1)
+          }
+        }
+        (new Thread(task, s"siren-{i}")).start()
+      }
+      loop(0)
     }
 
 	loop(0, game)
