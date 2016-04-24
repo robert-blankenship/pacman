@@ -5,22 +5,19 @@ import collection.mutable
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent
 
-class Consumable
-case class Dot() extends Consumable
-case class PowerPellet() extends Consumable
 
 class DrawableElement()
 
-class NonCollidable() extends DrawableElement
-class Collidable() extends DrawableElement
+trait Consumable extends DrawableElement
+case class Dot() extends Consumable
+case class PowerPellet() extends Consumable
 
-case class Space() extends NonCollidable {
+case class Space() extends DrawableElement {
     val consumable: Consumable = Dot()
     var consumableAvailable: Boolean = true
 }
-
-case class Wall() extends Collidable
-case class Filled() extends Collidable
+case class Wall() extends DrawableElement
+case class Filled() extends DrawableElement
 
 sealed trait Direction
 case object East extends Direction
@@ -29,7 +26,7 @@ case object North extends Direction
 case object South extends Direction
 
 // NOTE: Is immutability possible here?
-trait Movable extends Collidable {
+trait Movable extends DrawableElement {
 	val id = java.util.UUID.randomUUID.toString
 
 	var direction: Direction
@@ -137,7 +134,6 @@ class World {
 		}
 	}
 
-
     var _points = 0
     def points = _points
     def points_=(points: Integer) {
@@ -145,7 +141,7 @@ class World {
         println(s"Pellets eaten: $points")
     }
 
-
+    // TODO: Handle more than one ghost.
     def handleGhostAI() {
       // Find a path to the player.
       val ghost = movables.filter(_.isInstanceOf[Ghost]).toList(0)
@@ -162,6 +158,14 @@ class World {
           ghost.direction
         }
       }
+    }
+
+    // TODO: Handle more than 1 ghost.
+    def ghostAtePlayer(maze: immutable.Map[(Int, Int), DrawableElement], movables: immutable.Set[Movable]): Boolean = {
+      val ghost = movables.filter(_.isInstanceOf[Ghost]).toList(0)
+      val player = movables.filter(_.isInstanceOf[Player]).toList(0)
+
+      ghost.x.toInt == player.x.toInt && ghost.y.toInt == player.y.toInt
     }
 
 	// But in the real world, all things move (or don't) at the same time.
@@ -216,6 +220,11 @@ class World {
 	}
 }
 
+trait GameState
+case object PlayerPlaying extends GameState
+case object PlayerWon extends GameState
+case object PlayerLost extends GameState
+
 class Game {
 	val world = new World()
 
@@ -231,8 +240,9 @@ class Game {
       val y = startingTile._1._2 + 0.5
       new Player(x, y)
     }
+	world.movables += player
 
-	val ghost1 = {
+	world.movables += {
       // Spawn the ghost at the bottom right.
       val startingTile = maze.toList.reverse.find(_._2.isInstanceOf[Space]).get
       val x = startingTile._1._1 + 0.5
@@ -240,10 +250,7 @@ class Game {
       new Ghost(x, y)
     }
 
-    var isOver = false
-
-	world.movables += player
-	world.movables += ghost1
+    var state: GameState = PlayerPlaying
 
 	def keyPressed(ev: KeyEvent) {
 		this.player.directionRequest = ev.getCode match {
@@ -257,22 +264,28 @@ class Game {
 		}
 	}
 
-	val gameThread = new Thread(new Runnable {
-          def run {
-              val loopSleepDurationMilliseconds = 10
-              while (true) {
-                  Thread.sleep(loopSleepDurationMilliseconds)
-                  world.handleGhostAI()
-                  world.update(maze, loopSleepDurationMilliseconds)
+    def start(): Thread = {
+      val gameThread = new Thread(new Runnable {
+            def run {
+                val loopSleepDurationMilliseconds = 10
+                while (state == PlayerPlaying) {
+                    Thread.sleep(loopSleepDurationMilliseconds)
+                    world.handleGhostAI()
+                    world.update(maze, loopSleepDurationMilliseconds)
 
-                  if (world.points >= maze.count(_._2.isInstanceOf[Space])) {
-                    isOver = true
-                  }
-              }
-          }
-       })
+                    if (world.points >= maze.count(_._2.isInstanceOf[Space])) {
+                      state = PlayerWon
+                    } else if (world.ghostAtePlayer(maze, world.movables)) {
+                      state = PlayerLost
+                    }
+                }
+            }
+         })
 
-    gameThread.start()
+      gameThread.start()
+      gameThread
+    }
+
 }
 
 object Game extends App {

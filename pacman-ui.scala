@@ -9,6 +9,7 @@ import javafx.concurrent.WorkerStateEvent
 import javafx.event.EventHandler
 import javafx.application.Application
 import javafx.scene.{ Group, Scene, Node }
+import javafx.scene.media.AudioClip
 import javafx.scene.text.{ Text, TextAlignment }
 import javafx.scene.shape._
 import javafx.scene.paint.Color
@@ -37,20 +38,21 @@ class PacmanUI extends Application {
 		primaryStage.show()
 	}
 
+    // Watch for keypress.
+	scene.addEventHandler(KeyEvent.KEY_PRESSED, new EventHandler[KeyEvent] {
+		override def handle(ev: KeyEvent) = game.keyPressed(ev)
+	})
 
-    var rects = List[Rectangle]()
+    var mazeRectangles = List[Rectangle]()
 	def drawMaze(maze: immutable.Map[(Int,Int), DrawableElement]) {
 		root.getChildren.clear()
-
-		rects = maze.map { tile =>
-			val coordinates = tile._1
-			val element = tile._2
-
-			val rect = new Rectangle(tileSize, tileSize, element match {
+		mazeRectangles = maze.map { tile =>
+			val rect = new Rectangle(tileSize, tileSize, tile._2 match {
 					case _: Wall => this.WallColor
 					case _: Space => this.PathwayColor
 					case _: Filled => this.PathwayColor
 				})
+			val coordinates = tile._1
 			rect.setX(coordinates._1 * tileSize)
 			rect.setY(coordinates._2 * tileSize)
 			root.getChildren.add(rect)
@@ -59,7 +61,6 @@ class PacmanUI extends Application {
 	}
 
 	val movablesById = mutable.Map[String, Circle]()
-
 	def drawMovables(movables: immutable.Set[Movable]) {
 		movables.foreach { (elem: Movable) =>
 			if (movablesById.isDefinedAt(elem.id) == false) {
@@ -93,10 +94,8 @@ class PacmanUI extends Application {
                         consumablesByCoordinates(coordinates).setCenterY((coordinates._2 + 0.5) * tileSize)
 
                         space.consumable match {
-                            case _: Dot =>
-                                consumablesByCoordinates(coordinates).setRadius(3)
-                            case _: PowerPellet =>
-                                consumablesByCoordinates(coordinates).setRadius(5)
+                            case _: Dot => consumablesByCoordinates(coordinates).setRadius(3)
+                            case _: PowerPellet => consumablesByCoordinates(coordinates).setRadius(5)
                         }
 
                         root.getChildren.add(consumablesByCoordinates(coordinates))
@@ -109,68 +108,55 @@ class PacmanUI extends Application {
 		}
     }
 
-
-
-
-    def gameEndAnimation(text: String) {
-      def loop(i: Int) {
-        val task = new Task[Unit] {
-          override def call(): Unit = {
-              Thread.sleep(10)
-          }
-          override def succeeded() {
-            rects(i).setFill(Color.BLACK)
-            loop(i + 1)
-          }
-        }
-        val t = new Thread(task, s"game-end-{i}")
-        t.setDaemon(true)
-        t.start()
-      }
-      loop(0)
-
-      val endText = new Text(tilesX/2 * tileSize, tilesY/2 * tileSize, "Thanks for playing!")
-      endText.setFill(Color.WHITE)
-      endText.setTextAlignment(TextAlignment.CENTER)
-      root.getChildren.add(endText)
-    }
-
-	val loopSleepDurationMilliseconds = 10
-
-    var lastThread = false
-
-	def loop(i: Integer) {
+	def loop(i: Integer, game: Game) {
 		val task = new Task[Unit] {
 			override def call(): Unit = {
-				Thread.sleep(loopSleepDurationMilliseconds)
+                if (i == 0) {
+                  drawMaze(game.maze)
+                  drawConsumables(game.maze)
+                  drawMovables(game.world.movables)
+                  (new AudioClip("file:sounds/opening-song.mp3")).play()
+                  Thread.sleep(4000) // Wait for clip to play
+                  game.start()
+                } else {
+				  Thread.sleep(10) // Wait before drawing again
+                }
 			}
 			override def succeeded() {
 				drawMovables(game.world.movables)
 				drawConsumables(game.maze)
-
-                if (game.isOver) {
-                  println("Game is over.")
-                  lastThread = true
-                  gameEndAnimation("text")
-                }
-                
-                if (lastThread == false) loop(i + 1)
+                if (game.state == PlayerPlaying) loop(i + 1, game) else handleGameEnd(game.state)
 			}
 		}
-		val t = new Thread(task, s"frame-{i}")
-		t.setDaemon(true)
-		t.start()
+		(new Thread(task, s"frame-{i}")).start()
 	}
 
-	scene.addEventHandler(KeyEvent.KEY_PRESSED, new EventHandler[KeyEvent] {
-		override def handle(ev: KeyEvent) {
-			game.keyPressed(ev)
-		}
-	})
+    def handleGameEnd(gameState: GameState) {
+      def animate() {
+        def loop(i: Int) {
+          val task = new Task[Unit] {
+            override def call(): Unit = Thread.sleep(10)
+            override def succeeded() {
+              mazeRectangles(i).setFill(Color.BLACK)
+              loop(i + 1)
+            }
+          }
+          (new Thread(task, s"game-end-{i}")).start()
+        }
+        loop(0)
+      }
+      println(s"Game is over. Result: ${ gameState }")
+      val text = gameState match {
+        case PlayerWon => "You win."
+        case PlayerLost => "You lose."
+      }
+      val textNode = new Text(tilesX/2 * tileSize, tilesY/2 * tileSize, s"${text} \n Thanks for playing!")
+      textNode.setFill(Color.WHITE)
+      textNode.setTextAlignment(TextAlignment.CENTER)
+      root.getChildren.add(textNode)
+      animate()
+    }
 
-	drawMaze(game.maze)
-    drawConsumables(game.maze)
-	loop(0)
+	loop(0, game)
 }
-
 
