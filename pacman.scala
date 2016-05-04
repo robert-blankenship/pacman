@@ -5,7 +5,6 @@ import collection.mutable
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent
 
-
 class DrawableElement()
 
 trait Consumable extends DrawableElement
@@ -44,7 +43,6 @@ trait Movable extends DrawableElement {
 			(r * 1000).toInt - (r.toInt * 1000) == 499 ||
 			(r * 1000).toInt - (r.toInt * 1000) == 501
 		}
-
 		check(x) && check(y)
 	} 
 
@@ -69,7 +67,6 @@ class Player(var x: Double, var y: Double) extends Movable {
 	var directionRequest: Direction = direction
 	val width = 1
 	val height = 1
-
 }
 
 class World {
@@ -109,7 +106,7 @@ class World {
 			}
 
 			def tileExistsAndIsSpace(coordinateX: Int, coordinateY: Int): Boolean = {
-				tileExists(coordinateX, coordinateY)  && tileIsSpace(coordinateX, coordinateY)
+				tileExists(coordinateX, coordinateY) && tileIsSpace(coordinateX, coordinateY)
 			}
 			
 			var allowedDirections = immutable.Set[Direction]()
@@ -229,8 +226,8 @@ class Game {
 	val world = new World()
 
 	val maze = {
-		val mapSource = scala.io.Source.fromFile("mazes/map-1.txt")
-		world.createMaze(mapSource.getLines().toList) 
+      val mapSource = scala.io.Source.fromFile("mazes/map-1.txt")
+      world.createMaze(mapSource.getLines().toList) 
 	}
 
 	val player = {
@@ -275,7 +272,7 @@ class Game {
 
                     if (world.points >= maze.count(_._2.isInstanceOf[Space])) {
                       state = PlayerWon
-                    } else if (world.ghostAtePlayer(maze, world.movables)) {
+                    } else if (world.movables.contains(player) == false) {
                       state = PlayerLost
                     }
                 }

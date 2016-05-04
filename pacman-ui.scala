@@ -126,7 +126,7 @@ class PacmanUI extends Application {
                   drawMovables(game.world.movables)
                   (new AudioClip("file:sounds/opening-song.mp3")).play()
                   Thread.sleep(4000) // Wait for clip to play
-                  //startSiren()
+                  startSiren()
                   game.start()
                 } else {
 				  Thread.sleep(10) // Wait before drawing again
@@ -169,11 +169,17 @@ class PacmanUI extends Application {
     }
 
     def startSiren() {
+      val sirenFile = new java.io.File("sounds/siren.mp3")
+      println(sirenFile.toURI.toString)
+      val clip = new Media(sirenFile.toURI.toString)
+      val player = new MediaPlayer(clip)
       def loop(i: Int) {
         val task = new Task[Unit] {
-          override def call(): Unit = Thread.sleep(2000)
+          // REALLY janky way of getting the siren right.
+          override def call(): Unit = Thread.sleep(1600)
           override def succeeded() {
-            (new AudioClip("file:sounds/siren.mp3")).play()
+            player.seek(new javafx.util.Duration(250))
+            player.play()
             loop(i + 1)
           }
         }
