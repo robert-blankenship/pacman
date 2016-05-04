@@ -178,9 +178,11 @@ class PacmanUI extends Application {
           // REALLY janky way of getting the siren right.
           override def call(): Unit = Thread.sleep(1600)
           override def succeeded() {
-            player.seek(new javafx.util.Duration(250))
-            player.play()
-            loop(i + 1)
+            if (game.state == PlayerPlaying) {
+              player.seek(new javafx.util.Duration(250))
+              player.play()
+              loop(i + 1)
+            }
           }
         }
         (new Thread(task, s"siren-{i}")).start()
