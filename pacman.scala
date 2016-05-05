@@ -272,7 +272,7 @@ class Game {
 
                     if (world.points >= maze.count(_._2.isInstanceOf[Space])) {
                       state = PlayerWon
-                    } else if (world.movables.contains(player) == false) {
+                    } else if (world.ghostAtePlayer(maze, world.movables)) {
                       state = PlayerLost
                     }
                 }
