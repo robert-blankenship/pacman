@@ -48,19 +48,21 @@ class PacmanUI extends Application {
 
     var mazeRectangles = List[Rectangle]()
 	def drawMaze(maze: immutable.Map[(Int,Int), DrawableElement]) {
-		root.getChildren.clear()
-		mazeRectangles = maze.map { tile =>
-			val rect = new Rectangle(tileSize, tileSize, tile._2 match {
-					case _: Wall => this.WallColor
-					case _: Space => this.PathwayColor
-					case _: Filled => this.PathwayColor
-				})
-			val coordinates = tile._1
-			rect.setX(coordinates._1 * tileSize)
-			rect.setY(coordinates._2 * tileSize)
-			root.getChildren.add(rect)
-            rect
-		}.toList
+      root.getChildren.clear()
+      mazeRectangles = maze.map { tile =>
+        val tileColor = tile._2 match {
+          case _: Wall => this.WallColor
+          case _: Space => this.PathwayColor
+          case _: Filled => this.PathwayColor
+        }
+
+        val rect = new Rectangle(tileSize, tileSize, tileColor) 
+        val coordinates = tile._1
+        rect.setX(coordinates._1 * tileSize)
+        rect.setY(coordinates._2 * tileSize)
+        root.getChildren.add(rect)
+        rect
+      }.toList
 	}
 
 	val movablesById = mutable.Map[String, Circle]()
