@@ -69,7 +69,7 @@ class Player(var x: Double, var y: Double) extends Movable {
 	val height = 1
 }
 
-class World {
+object World {
 	def createMaze(mapLines: List[String]): immutable.Map[(Int, Int), DrawableElement] = {
 		mapLines.zipWithIndex.map { (row: Tuple2[String, Int]) =>
 			val rowString = row._1
@@ -88,7 +88,6 @@ class World {
 		}.toIndexedSeq.flatten.toMap
 	}
 
-	var movables = immutable.Set[Movable]()
 
 	def getAllowedDirections(elem: Movable, maze: immutable.Map[(Int, Int), DrawableElement]): immutable.Set[Direction] = {
 		// This makes the code a little unstable, but we'll put up with it for now :).
@@ -131,16 +130,9 @@ class World {
 		}
 	}
 
-    var _points = 0
-    def points = _points
-    def points_=(points: Integer) {
-        _points = points
-        println(s"Pellets eaten: $points")
-    }
 
     // TODO: Handle more than one ghost.
-    def handleGhostAI() {
-      // Find a path to the player.
+    def handleGhostAI(movables: immutable.Set[Movable]) {
       val ghost = movables.filter(_.isInstanceOf[Ghost]).toList(0)
       val player = movables.filter(_.isInstanceOf[Player]).toList(0)
 
@@ -166,9 +158,12 @@ class World {
     }
 
 	// But in the real world, all things move (or don't) at the same time.
-	def update(maze: immutable.Map[(Int, Int), DrawableElement], elapsedTimeMs: Int) {
+    // Returns the new number of points.
+	def update(maze: immutable.Map[(Int, Int), DrawableElement], elapsedTimeMs: Int, movables: immutable.Set[Movable], points: Integer): Integer = {
+        var updatedPoints = points
+
 		(0 to elapsedTimeMs).foreach { _ =>
-			this.movables.foreach { elem =>
+			movables.foreach { elem =>
 			
                 // Change direction
 				if (elem.direction != elem.directionRequest && getAllowedDirections(elem, maze).contains(elem.directionRequest)) {
@@ -203,7 +198,7 @@ class World {
                                 case player: Player => space.consumable match {
                                     case _: Dot =>
                                         space.consumableAvailable = false
-                                        points += 1
+                                        updatedPoints += 1
 
                                     case _: PowerPellet =>
                                         space.consumableAvailable = false
@@ -213,7 +208,9 @@ class World {
                     case _: DrawableElement =>
                 }
 			}
-		} 
+		}
+
+        updatedPoints
 	}
 }
 
@@ -223,12 +220,15 @@ case object PlayerWon extends GameState
 case object PlayerLost extends GameState
 
 class Game {
-	val world = new World()
 
 	val maze = {
       val mapSource = scala.io.Source.fromFile("mazes/map-1.txt")
-      world.createMaze(mapSource.getLines().toList) 
+      World.createMaze(mapSource.getLines().toList) 
 	}
+    
+    var points = 0
+
+    var movables = immutable.Set[Movable]()
 
 	val player = {
       // Spawn the player at the top left.
@@ -237,9 +237,8 @@ class Game {
       val y = startingTile._1._2 + 0.5
       new Player(x, y)
     }
-	world.movables += player
-
-	world.movables += {
+	movables += player
+	movables += {
       // Spawn the ghost at the bottom right.
       val startingTile = maze.toList.reverse.find(_._2.isInstanceOf[Space]).get
       val x = startingTile._1._1 + 0.5
@@ -267,12 +266,12 @@ class Game {
                 val loopSleepDurationMilliseconds = 10
                 while (state == PlayerPlaying) {
                     Thread.sleep(loopSleepDurationMilliseconds)
-                    world.handleGhostAI()
-                    world.update(maze, loopSleepDurationMilliseconds)
+                    World.handleGhostAI(movables)
+                    points = World.update(maze, loopSleepDurationMilliseconds, movables, points)
 
-                    if (world.points >= maze.count(_._2.isInstanceOf[Space])) {
+                    if (points >= maze.count(_._2.isInstanceOf[Space])) {
                       state = PlayerWon
-                    } else if (world.ghostAtePlayer(maze, world.movables)) {
+                    } else if (World.ghostAtePlayer(maze, movables)) {
                       state = PlayerLost
                     }
                 }

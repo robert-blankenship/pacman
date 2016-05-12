@@ -19,6 +19,14 @@ import javafx.scene.media.{ MediaPlayer, Media }
 import javafx.util.Duration
 
 
+// Right now, it appears that PacmanUI has 3 dependencies in Game
+//    - game.state
+//    - game.maze
+//    - game.movables
+//
+// It also calls the following
+//    - game.start()
+//    - game.keyPress()
 class PacmanUI extends Application {
 	val WallColor = Color.BLUE
 	val PathwayColor = Color.BLACK
@@ -125,7 +133,7 @@ class PacmanUI extends Application {
                 if (i == 0) {
                   drawMaze(game.maze)
                   drawConsumables(game.maze)
-                  drawMovables(game.world.movables)
+                  drawMovables(game.movables)
                   (new AudioClip("file:sounds/opening-song.mp3")).play()
                   Thread.sleep(4000) // Wait for clip to play
                   startSiren()
@@ -135,7 +143,7 @@ class PacmanUI extends Application {
                 }
 			}
 			override def succeeded() {
-				drawMovables(game.world.movables)
+				drawMovables(game.movables)
 				drawConsumables(game.maze)
                 if (game.state == PlayerPlaying) loop(i + 1, game) else handleGameEnd(game.state)
 			}
