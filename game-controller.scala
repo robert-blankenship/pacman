@@ -10,6 +10,8 @@
 //    - game.keyPress()
 //
 
+package pacman
+
 import java.net.ServerSocket
 import java.io.PrintStream
 import io.BufferedSource
@@ -54,8 +56,6 @@ object GameController extends App {
     }
   }
 
-  println(webSocketAccept)
-
   val out = new PrintStream(outputStream)
 
   out.println("HTTP/1.1 101 Switching Protocols")
@@ -67,6 +67,24 @@ object GameController extends App {
 
   inputStream.getClass.getMethods.foreach(println(_))
 
+  def sendMessage(stream: java.io.OutputStream, message: String) = {
+    stream.write(129.toByte)
+
+    message.getBytes.length match {
+      case length if length < 126 =>
+        stream.write(length.toByte)
+      case length if length > 126 && length < 65536 =>
+        stream.write(126.toByte)
+        println(s"length: $length")
+        stream.write((length >> 8 & 255).toByte)
+        stream.write((length >> 0 & 255).toByte)
+      case length if length > 65536 =>
+        stream.write(127.toByte)
+    }
+
+    stream.write(message.getBytes)
+  }
+
   def readMessage(stream: java.io.InputStream): String = {
     val fin = stream.read()
 
@@ -75,6 +93,7 @@ object GameController extends App {
     val messageLength = {
       if (lengthByte - 128 < 125) {
         lengthByte - 128
+      // TODO: These cases are wrong.
       } else if (lengthByte - 128 == 126) {
         stream.read() * stream.read()
       } else if (lengthByte - 128 == 127) {
@@ -91,16 +110,53 @@ object GameController extends App {
     println(s"Message encoded: $messageEncoded")
     println(s"Message decoded: $messageDecoded")
     new String(messageDecoded.map(_.toByte).map(_.toChar).toArray)
+
   }
 
-  // Get methods.
-  // outputStream.getClass.getMethods.foreach(println(_))
-  while (true) {
-    if (inputStream.available > 0) {
-      val message = readMessage(inputStream)
-      println(message)
+  
+  val game = new Game()
+
+  def sendMaze(stream: java.io.OutputStream, maze: Map[(Int, Int), DrawableElement]) {
+    var json = "{"
+    json += {
+      "\"maze\":" + "[" + maze.map {
+        case ((column: Int, row: Int), skin: Space) =>
+          "{" + 
+            "\"row\":" + row.toString + "," +
+            "\"column\":" + column.toString + "," + 
+            "\"consumableAvailable\":" + skin.consumableAvailable.toString + "," + 
+            "\"skin\":" + "\"space\""  +
+          "}"
+        case ((column: Int, row: Int), skin: Wall) =>
+          "{" + 
+            "\"row\":" + row.toString + "," +
+            "\"column\":" + column.toString + "," + 
+            "\"skin\":" + "\"wall\""  +
+          "}"
+      }.mkString(",") + "]"
     }
+    json += "}"
+
+    sendMessage(stream, json)
   }
+//
+//  def sendMovables(stream: java.io.OutputStream, movables: Set[Movable]) {
+//    var json = "{"
+//    json += {
+//      "\"maze\":" + "[" + maze.map {
+//        case ((column: Int, row: Int), skin: Space) =>
+//          "{" + "\"row\":" + row.toString + "," + "\"column\":" + column.toString + "," + "\"skin\":" + "\"space\""  + "}"
+//        case ((column: Int, row: Int), skin: Wall) =>
+//          "{" + "\"row\":" + row.toString + "," + "\"column\":" + column.toString + "," + "\"skin\":" + "\"wall\"" + "}"
+//      }.mkString(",") + "]"
+//    }
+//    json += "}"
+//  }
+
+  sendMaze(outputStream, game.maze)
+  //sendMovables(outputStream, game.maze)
+
+  while (true) {}
 
   socket.close()
 }

@@ -1,6 +1,7 @@
 
 class DrawableElement
 class Space extends DrawableElement
+    constructor: (@consumableAvailable) ->
 class Wall extends DrawableElement
 
 class Tile
@@ -8,7 +9,7 @@ class Tile
 
 getTileHeight = (maze, ctx) ->
     tilesY =
-        maze.map (tile)-> tile.row
+        1 + maze.map (tile)-> tile.row
             .reduce (rowCurrent, rowNext) ->
                 console.log(rowCurrent, rowNext)
                 if rowNext > rowCurrent then rowNext else rowCurrent
@@ -17,56 +18,57 @@ getTileHeight = (maze, ctx) ->
 
 getTileWidth = (maze, ctx) ->
     tilesX =
-        maze.map (tile)-> tile.column
+        1 + maze.map (tile)-> tile.column
             .reduce (columnCurrent, columnNext) ->
                 if columnNext > columnCurrent then columnNext else columnCurrent
 
     ctx.canvas.width / tilesX
 
 
+drawPellet = (tile, maze, ctx) ->
+    tileWidth = getTileWidth(maze, ctx)
+    tileHeight = getTileHeight(maze, ctx)
+    
+    ctx.fillStyle = "yellow"
+    ctx.arc(tile.column * tileWidth + tileWidth/2, tile.row * tileHeight + tileHeight/2, 5, 2 * Math.PI)
+
 drawMaze = (maze, ctx) ->
     tileWidth = getTileWidth(maze, ctx)
     tileHeight = getTileHeight(maze, ctx)
 
-    console.log tileWidth
-    console.log tileHeight
-
     maze.forEach (tile) ->
         ctx.fillStyle = 
             if tile.skin instanceof Space
+                if tile.consumableAvailable then drawPellet tile, maze, ctx
                 "blue"
             else if tile.skin instanceof Wall
                 "black"
-        ctx.fillRect(tile.row * tileWidth, tile.column * tileHeight, tileWidth, tileHeight)
+        ctx.fillRect(tile.column * tileWidth, tile.row * tileHeight, tileWidth, tileHeight)
 
     ctx.stroke()
 
+
+
 init = ->
-
-    testMaze = [
-        new Tile(0, 0, new Space())
-        new Tile(0, 1, new Space())
-        new Tile(0, 2, new Space())
-        new Tile(0, 3, new Space())
-        new Tile(1, 0, new Space())
-        new Tile(1, 1, new Space())
-        new Tile(1, 2, new Space())
-        new Tile(1, 3, new Space())
-        new Tile(2, 0, new Wall())
-        new Tile(2, 1, new Wall())
-        new Tile(2, 2, new Wall())
-        new Tile(2, 3, new Wall())
-        new Tile(3, 0, new Wall())
-        new Tile(3, 1, new Wall())
-        new Tile(3, 2, new Wall())
-        new Tile(3, 3, new Wall())
-    ]
-
-    maze = testMaze
-
     canvas = document.getElementById('game-canvas')
     context = canvas.getContext('2d')
 
-    drawMaze(maze, context)
+    socket = new WebSocket "ws://localhost:8000"
+    socket.onmessage = (message) ->
+        json = JSON.parse message.data
+
+        console.log(json)
+
+        unless json.maze is undefined
+            maze = json.maze.map (tile) ->
+                if tile.skin is 'space'
+                    new Tile(tile.row, tile.column, new Space(tile.consumableAvailable))
+                else if tile.skin is 'wall'
+                    new Tile(tile.row, tile.column, new Wall())
+
+
+
+
+        drawMaze(maze, context)
 
 init()
