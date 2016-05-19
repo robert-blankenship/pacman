@@ -79,7 +79,6 @@ object SocketUtil {
 
   def readMessage(stream: InputStream): String = {
     val messageStatusCode = stream.read()
-
     val lengthByte = stream.read()
     
     val messageLength = {
@@ -121,14 +120,20 @@ object SocketServer extends App {
     val inputThread = new Thread(new Runnable {
       def run {
         while (true) {
-          game.player.directionRequest = SocketUtil.readMessage(inputStream) match {
-            case "East" => East
-            case "West" => West
-            case "North" => North
-            case "South" => South
+          val message = SocketUtil.readMessage(inputStream)
+
+          if (message == "") {
+            println(s"Assuming message '$message' is kill signal")
+            connection.close()
+          }
+
+          message match {
+            case "East" => game.player.directionRequest = East
+            case "West" => game.player.directionRequest = West
+            case "North" => game.player.directionRequest = North
+            case "South" => game.player.directionRequest = South
             case (key: String)  =>
               println(s"Recevied bad direction $key")
-              game.player.directionRequest
           }
         }
       }
@@ -149,10 +154,12 @@ object SocketServer extends App {
           Thread.sleep(20)
           SocketUtil.sendMessage(outputStream, GameController.mazeToJson(game.maze))
           SocketUtil.sendMessage(outputStream, GameController.movablesToJson(game.movables))
+          SocketUtil.sendMessage(outputStream, GameController.stateToJson(game.state))
         }
       }
     })
     outputThread.start()
+
   }
 }
 
@@ -195,6 +202,20 @@ object GameController {
           "}"
       }.mkString(",") + "]"
     } + "}"
+  }
+
+  def stateToJson(state: GameState): String = {
+    s"""
+    {
+      "state":"${
+        state match {
+          case PlayerPlaying => "player-playing"
+          case PlayerWon => "player-won"
+          case PlayerLost => "player-lost"
+        }
+      }"
+    }
+    """
   }
 }
 

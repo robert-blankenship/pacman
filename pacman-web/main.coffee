@@ -82,10 +82,16 @@ init = ->
     maze = []
     movables = []
 
-
+    siren =  new Audio '../sounds/siren-loop.ogg'
     openingSong = new Audio '../sounds/opening-song.mp3'
     openingSong.play()
-   
+    openingSong.onended = ->
+        siren.loop = true
+        siren.play()
+
+    defeatSong = new Audio '../sounds/death.mp3'
+    victorySong = new Audio '../sounds/intermission.mp3'
+
     window.addEventListener "keydown", (ev) ->
         console.log "player pressed #{ev.keyCode}"
 
@@ -111,6 +117,19 @@ init = ->
 
         unless json.movables is undefined
             movables = json.movables.map (movableData) -> new Movable(movableData)
+
+        unless json.state is undefined
+            switch json.state
+                when "player-playing"
+                    null
+                when "player-won"
+                    socket.close()
+                    siren.pause()
+                    victorySong.play()
+                when "player-lost"
+                    socket.close()
+                    siren.pause()
+                    defeatSong.play()
 
         context.clearRect(0, 0, canvas.width, canvas.height)
 

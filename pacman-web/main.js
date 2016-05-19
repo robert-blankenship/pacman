@@ -143,14 +143,21 @@
   })();
 
   init = function() {
-    var canvas, context, maze, movables, openingSong, socket;
+    var canvas, context, defeatSong, maze, movables, openingSong, siren, socket, victorySong;
     canvas = document.getElementById('game-canvas');
     context = canvas.getContext('2d');
     socket = new WebSocket("ws://localhost:8000");
     maze = [];
     movables = [];
+    siren = new Audio('../sounds/siren-loop.ogg');
     openingSong = new Audio('../sounds/opening-song.mp3');
     openingSong.play();
+    openingSong.onended = function() {
+      siren.loop = true;
+      return siren.play();
+    };
+    defeatSong = new Audio('../sounds/death.mp3');
+    victorySong = new Audio('../sounds/intermission.mp3');
     window.addEventListener("keydown", function(ev) {
       console.log("player pressed " + ev.keyCode);
       return socket.send((function() {
@@ -190,6 +197,22 @@
         movables = json.movables.map(function(movableData) {
           return new Movable(movableData);
         });
+      }
+      if (json.state !== void 0) {
+        switch (json.state) {
+          case "player-playing":
+            null;
+            break;
+          case "player-won":
+            socket.close();
+            siren.pause();
+            victorySong.play();
+            break;
+          case "player-lost":
+            socket.close();
+            siren.pause();
+            defeatSong.play();
+        }
       }
       context.clearRect(0, 0, canvas.width, canvas.height);
       drawMaze(maze, context);
