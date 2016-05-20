@@ -48,6 +48,8 @@
     function Movable(movableData) {
       this.x = movableData.x;
       this.y = movableData.y;
+      this.type = movableData.type;
+      this.color = movableData.color;
     }
 
     return Movable;
@@ -109,13 +111,27 @@
   };
 
   drawMovables = function(movables, maze, ctx) {
-    var tileWidth;
+    var drawGhost, drawPacman, tileWidth;
     tileWidth = getTileWidth(maze, ctx);
-    return movables.forEach(function(movable) {
+    drawPacman = function(x, y) {
       ctx.beginPath();
       ctx.fillStyle = "yellow";
-      ctx.arc(tileWidth * movable.x, tileWidth * movable.y, 10, 0, 2 * Math.PI);
+      ctx.arc(tileWidth * x, tileWidth * y, 10, 0, 2 * Math.PI);
       return ctx.fill();
+    };
+    drawGhost = function(x, y, color) {
+      ctx.beginPath();
+      ctx.fillStyle = color;
+      ctx.arc(tileWidth * x, tileWidth * y, 10, 0, 2 * Math.PI);
+      return ctx.fill();
+    };
+    return movables.forEach(function(movable) {
+      switch (movable.type) {
+        case "ghost":
+          return drawGhost(movable.x, movable.y, movable.color);
+        case "player":
+          return drawPacman(movable.x, movable.y);
+      }
     });
   };
 

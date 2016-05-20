@@ -186,22 +186,35 @@ object GameController {
   }
 
   def movablesToJson(movables: Set[Movable]): String = {
-    "{" + {
-      "\"movables\":" + "[" + movables.map {
-        case (movable: Movable) =>
-          "{" + 
-            "\"direction\":"        + s""""${movable.direction}"""" + "," +
-            "\"directionRequest\":" + s""""${movable.directionRequest}"""" + "," + 
-            "\"speed\":"            + movable.speed + "," + 
-            "\"speedMs\":"          + movable.speedMs + "," + 
-            "\"width\":"            + movable.width + "," + 
-            "\"height\":"           + movable.height + "," + 
-            "\"id\":"               + s""""${movable.id}"""" + "," + 
-            "\"x\":"                + movable.x + "," +
-            "\"y\":"                + movable.y + 
-          "}"
-      }.mkString(",") + "]"
-    } + "}"
+
+    def movableToJson(movable: Movable): String = s"""
+      { 
+        "direction":"${movable.direction}",
+        "directionRequest":"${movable.directionRequest}",
+        "speed":${movable.speed},
+        "speedMs":${movable.speedMs}, 
+        "width":${movable.width}, 
+        "height":${movable.height},
+        "id":"${movable.id}",
+        "x":${movable.x},
+        "y":${movable.y},
+        "type":"${
+          movable match {
+            case _: Ghost => "ghost"
+            case _: Player => "player"
+          }
+        }",
+        "color":"${movable.color}"
+      }
+    """
+
+    s"""
+    {
+      "movables": [
+        ${movables.map(movableToJson(_)).mkString(",")}
+       ]
+    }
+    """
   }
 
   def stateToJson(state: GameState): String = {

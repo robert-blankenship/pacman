@@ -53,6 +53,8 @@ trait Movable extends DrawableElement {
 	// NOTE: Would be cool to make this work with arbitrary curves.
 	val width: Int
 	val height: Int
+
+    val color: String
 }
 
 class Ghost(var x: Double, var y: Double) extends Movable {
@@ -60,6 +62,12 @@ class Ghost(var x: Double, var y: Double) extends Movable {
 	var directionRequest: Direction = direction
 	val width = 1
 	val height = 1
+
+    val color = {
+      val ghostColors = Set[String]("purple", "pink", "orange")
+      val rnd = new util.Random
+      ghostColors.toVector(rnd.nextInt(ghostColors.size))
+    }
 }
 
 class Player(var x: Double, var y: Double) extends Movable {
@@ -67,6 +75,7 @@ class Player(var x: Double, var y: Double) extends Movable {
 	var directionRequest: Direction = direction
 	val width = 1
 	val height = 1
+    val color = "yellow"
 }
 
 object World {

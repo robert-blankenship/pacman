@@ -11,6 +11,8 @@ class Movable
     constructor: (movableData) ->
         @x = movableData.x
         @y = movableData.y
+        @type = movableData.type
+        @color = movableData.color
 
 getTileHeight = (maze, ctx) ->
     tilesY =
@@ -52,15 +54,26 @@ drawMaze = (maze, ctx) ->
                 "black"
         ctx.fillRect(tile.column * tileWidth, tile.row * tileHeight, tileWidth, tileHeight)
         ctx.stroke()
-        
+    
 drawMovables = (movables, maze, ctx) ->
     tileWidth = getTileWidth(maze, ctx)
 
-    movables.forEach (movable) ->
+    drawPacman = (x, y) ->
         ctx.beginPath()
         ctx.fillStyle = "yellow"
-        ctx.arc(tileWidth * movable.x, tileWidth * movable.y, 10, 0, 2 * Math.PI)
+        ctx.arc(tileWidth * x, tileWidth * y, 10, 0, 2 * Math.PI)
         ctx.fill()
+
+    drawGhost = (x, y, color) ->
+        ctx.beginPath()
+        ctx.fillStyle = color
+        ctx.arc(tileWidth * x, tileWidth * y, 10, 0, 2 * Math.PI)
+        ctx.fill()
+
+    movables.forEach (movable) ->
+        switch movable.type
+            when "ghost" then drawGhost(movable.x, movable.y, movable.color)
+            when "player" then drawPacman(movable.x, movable.y)
 
 class KeyCodes
     @w = 119
